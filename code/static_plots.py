@@ -162,3 +162,44 @@ print(f"K-S test : Runtime Column looks {interpret_ks_test(p_val_runtime)}")
 ## The test strongly rejects the null hypothesis that the data comes from a normal distribution.
 
 # %%
+
+## Checking normality of budget column using KS test
+
+ks_stat_budget, p_val_budget = st.kstest(movies_df['budget'], 'norm')
+
+def interpret_ks_test(p_val):
+
+    if p_val >= 0.05:
+        return 'Normal'
+    else:
+        return 'Not Normal'
+
+print(f"K-S test : statistics = {round(ks_stat_budget,2)}, p-value = {round(p_val_budget, 2)}")
+print(f"K-S test : Budget Column looks {interpret_ks_test(p_val_budget)}")
+
+## The test statistic is 0.5 is large, suggesting a difference between the budget column distribution and normal distribution.
+## The p value of 0 indicates that the difference is statistically significant.
+## The test strongly rejects the null hypothesis that the data comes from a normal distribution.
+
+# %%
+
+## Checking normality of popularity column using KS test
+
+ks_stat_popularity, p_val_popularity = st.kstest(movies_df['popularity'], 'norm')
+
+def interpret_ks_test(p_val):
+
+    if p_val >= 0.05:
+        return 'Normal'
+    else:
+        return 'Not Normal'
+
+print(f"K-S test : statistics = {round(ks_stat_popularity,2)}, p-value = {round(p_val_popularity, 2)}")
+print(f"K-S test : Popularity Column looks {interpret_ks_test(p_val_popularity)}")
+
+## The test statistic is 0.69 is large, suggesting a difference between the budget column distribution and normal distribution.
+## The p value of 0 indicates that the difference is statistically significant.
+## The test strongly rejects the null hypothesis that the data comes from a normal distribution.
+
+# %%
+
