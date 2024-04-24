@@ -11,6 +11,9 @@ from dash import dcc, html, Input, Output
 import plotly.express as px
 
 # %%
+
+    # ===============Phase 1 -  Loading the data ================
+
 url ='https://drive.google.com/file/d/1izawoE4HceqSWJBMwZ-cv7f0-50tBD-l/view?usp=sharing'
 movies_df=pd.read_csv('https://drive.usercontent.google.com/download?id={}&export=download&authuser=0&confirm=t'.format(url.split('/')[-2]))
 
@@ -111,8 +114,12 @@ monthly_revenue = monthly_revenue.sort_values('release_month_name')
 
 #%%
 
-# Initialize the Dash app
+# ===============Phase 2 -  Initializing the app ================
 app = dash.Dash(__name__)
+
+server = app.server
+
+# ===============Phase 3 -  Defining the layout of the app ================
 
 # Define the layout of the app
 app.layout = html.Div([
@@ -192,6 +199,8 @@ tab5_layout = html.Div([
         dcc.Graph(id='status-pie-chart')
     ], style={'textAlign': 'center'})  # Added style here to center all content
 ])
+
+# ===============Phase 4 -  Defining the layout the app ================
 
 # Define callback for updating tabs
 @app.callback(Output('layout', 'children'), Input('tabs', 'value'))
@@ -360,7 +369,7 @@ def update_yearly_revenue_chart(selected_year_range):
 )
 def update_status_pie_chart(selected_statuses):
     if not selected_statuses:
-        return px.pie()  # Returns an empty pie chart if no statuses are selected
+        return px.pie() 
 
     # Filter data based on selected statuses
     filtered_data = movies_df[movies_df['status'].isin(selected_statuses)]
