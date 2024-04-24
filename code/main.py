@@ -5,10 +5,13 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from statsmodels. graphics.gofplots import qqplot
 import scipy.stats as st
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from prettytable import PrettyTable
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
 
 # %%
 url ='https://drive.google.com/file/d/1izawoE4HceqSWJBMwZ-cv7f0-50tBD-l/view?usp=sharing'
@@ -98,7 +101,9 @@ movies_df = movies_df.drop(rev_lt_zero.index)
 
 #%%
 
-fig, axes = plt.subplots(3, 2, figsize=(12, 10))
+## Outlier Detection
+
+fig, axes = plt.subplots(3, 2, figsize=(12, 8))
 
 # Flatten the axes array for easier iteration
 axes = axes.flatten()
@@ -108,6 +113,7 @@ columns = ['vote_average', 'vote_count', 'revenue', 'runtime', 'budget','popular
 
 # Iterate over each column and plot the boxplot
 for i, column in enumerate(columns):
+
         sns.boxplot(x=movies_df[column], ax=axes[i])
         axes[i].set_title(f"Distribution of {column}")
 
@@ -115,13 +121,8 @@ for i, column in enumerate(columns):
 plt.tight_layout()
 plt.show()
 
-## From the boxplots, we can see that the vote_average column does not have any outliers.
-##  The boxplots of vote_count, revenue, runtime, budget and popularity display outliers on the higher ends.
-## However, these outliers appear to be valid data points.
-## Therefore, I decided to retain the original data rather than remove those outliers.
 
-# %%
-
+#%%
 ## Normality Detection
 
 ## Checking the normality of vote_average, vote_count, revenue, runtime, budget and popularity columns using histogram plot.
@@ -136,29 +137,13 @@ columns = ['vote_average', 'vote_count', 'revenue', 'runtime', 'budget', 'popula
 
 # Iterate over each column and plot the histogram
 for i, column in enumerate(columns):
-    sns.histplot(x=movies_df[column], kde=True, ax=axes[i], bins = 30)
+    sns.histplot(x=movies_df[column], kde=True, ax=axes[i], bins=30)
     axes[i].set_title(f"Distribution of {column}")
-
 
 # Adjust layout
 plt.tight_layout()
 plt.show()
 
-## The distribution of vote_average appears to be left skewed with a concentration of values, with a concentration of values towards the higher end of the scale and a long tail extending towards the lower scores.
-## This indicates that most of the movies receive a high average vote, with fewer movies receiving low ratings.
-
-## The distribution of vote_count shows a highly right skewed distribution. 
-## There are a significant number of movies with very few votes and the frequency quickly drops off as the number of votes increases, suggesting that few movies receive a large number of votes.
-
-## The revenue distribution is also right skewed. Most movies earn a relatively small amount of revenue, while the counts decreases as the revenue increases. High earning movies are relatively rare.
-
-## The runtime distribution is also right skewed with a few movies with very long runtime that creates longer tails.
-
-## Similar to revenue, the budget is also right skewed. Most movies have lower budgets, with fewer movies having very high budgets.
-
-## The popularity distribution is highly right skewed, with most movies having low popularity scores and a very quick drop off as popularity increases. This implies that only a small number of movies achieve higher popularity.
-
-## Overall, we can see that none of the variables are normally dsitributed. We need to transform these variables from Non-Gaussian to Gaussian distribution.
 
 # %%
 
@@ -166,37 +151,36 @@ plt.show()
 
 ks_stat_runtime, p_val_runtime = st.kstest(movies_df['runtime'], 'norm')
 
-def interpret_ks_test(p_val):
 
+def interpret_ks_test(p_val):
     if p_val >= 0.05:
         return 'Normal'
     else:
         return 'Not Normal'
 
-print(f"K-S test : statistics = {round(ks_stat_runtime,2)}, p-value = {round(p_val_runtime, 2)}")
+
+print(f"K-S test : statistics = {round(ks_stat_runtime, 2)}, p-value = {round(p_val_runtime, 2)}")
 print(f"K-S test : Runtime Column looks {interpret_ks_test(p_val_runtime)}")
 
-## The test statistic 0.99 is quite large, suggesting a substantial difference between the runtime column distribution and normal distribution.
-## The p value of 0 indicates that the difference is statistically significant.
-## The test strongly rejects the null hypothesis that the data comes from a normal distribution.
+
 
 # %%
 
-## Data Transformation - Transforming Non - Normal Distributions to Normal Distributions.
+# Data Transformation - Transforming Non - Normal Distributions to Normal Distributions.
 
-## Applying Box Cox transformations to revenue, runtime, budget and popularity variables.
+# Applying Box Cox transformations to revenue, runtime, budget and popularity variables.
 
 # Apply Box-Cox transformation to 'revenue' column
-movies_df['revenue'], revenue_lambda = st.boxcox(movies_df['revenue']) 
+movies_df['revenue_transformed'], revenue_lambda = st.boxcox(movies_df['revenue'])
 
 # Apply Box-Cox transformation to 'runtime' column
-movies_df['runtime'], runtime_lambda = st.boxcox(movies_df['runtime'])  
+movies_df['runtime_transformed'], runtime_lambda = st.boxcox(movies_df['runtime'])
 
 # Apply Box-Cox transformation to 'budget' column
-movies_df['budget'], budget_lambda = st.boxcox(movies_df['budget'])  
+movies_df['budget_transformed'], budget_lambda = st.boxcox(movies_df['budget'])
 
 # Apply Box-Cox transformation to 'popularity' column
-movies_df['popularity'], popularity_lambda = st.boxcox(movies_df['popularity'])  
+movies_df['popularity_transformed'], popularity_lambda = st.boxcox(movies_df['popularity'])
 
 # You can print out the lambda values if needed
 print("Lambda values:")
@@ -208,7 +192,7 @@ print("Popularity:", popularity_lambda)
 
 ## Applying log(x + 1) transformation for vote_count column
 
-movies_df['vote_count'] = np.log1p(movies_df['vote_count'])
+movies_df['vote_count_transformed'] = np.log1p(movies_df['vote_count'])
 
 # %%
 
@@ -220,7 +204,7 @@ fig, axes = plt.subplots(3, 2, figsize=(12, 10))
 axes = axes.flatten()
 
 # Specify the columns for histograms
-columns = ['vote_average', 'vote_count', 'revenue', 'runtime', 'budget', 'popularity']
+columns = ['vote_average', 'vote_count_transformed', 'revenue_transformed', 'runtime_transformed', 'budget_transformed', 'popularity_transformed']
 
 # Iterate over each column and plot the histogram
 for i, column in enumerate(columns):
@@ -247,7 +231,7 @@ x = StandardScaler().fit_transform(x)
 pca = PCA()
 principalComponents = pca.fit(x)
 
-## Checking the condition number and getting the singular values 
+## Checking the condition number and getting the singular values
 condition_number = np.linalg.cond(pca.components_)
 singular_values = pca.singular_values_
 
@@ -255,7 +239,7 @@ print(f"Condition Number: {condition_number}")
 print(f"Singular Values: {singular_values}")
 
 # Plot cumulative explained variance
-plt.figure(figsize=(8,5))
+plt.figure(figsize=(8, 5))
 plt.plot(np.cumsum(pca.explained_variance_ratio_))
 plt.xlabel('Number of Components')
 plt.ylabel('Cumulative Explained Variance')
@@ -271,25 +255,12 @@ features_to_remove = len(features) - num_components_for_90
 print(f"Number of components to retain 90% of variance: {num_components_for_90}")
 print(f"Features that can be removed: {features_to_remove}")
 
-## Explanation of PCA:
-
-## Condition Number : The condition number of the PCA components matrix is approximately 1, which indicates that the matrix is well conditioned. 
-## This means that there is no significant multicollinearity in the data and suggests that the principal components are numerically stable.
-
-## Singular Values : The first singular value is 383.54, which is significantly higher than the rest. This indicates that the first principal component captures a substantial amount of variance within the dataset.
-## As the singular value decreases, they indicate principal components with diminishing contributions to capturing the dataset's variance.
-## The second singular value is 200.02, which is roughly half of the first, meaning that while substantial, it contributes significantly less to explaining the variance than the first component. This pattern continues with the third, fourth, fifth and sixth singular values.
-
-## Cumulative Explained Variance Plot : From the cumulative explained variance plot, we see that 4 components are needed to retain 90% of the variance.
-## This means that the first four principal components capture most of the information that was contained in the original six features.
-## Since, we can capture 90% of the variance with 4 components, we can reduce the feature space from 6 to 4, effectively removing 2 features. 
-
-#%%
+# %%
 
 ## Pearson Correlation Coefficient
 
-## Selecting the numerical columns 
-numerical_columns = ['vote_average', 'vote_count', 'runtime', 'budget', 'popularity','revenue']
+## Selecting the numerical columns
+numerical_columns = ['vote_average', 'vote_count', 'runtime', 'budget', 'popularity', 'revenue']
 
 # Calculating correlation matrix
 correlation_matrix = movies_df[numerical_columns].corr()
@@ -308,32 +279,226 @@ sns.pairplot(movies_df[numerical_columns])
 plt.suptitle('Scatter Plot Matrix')
 plt.show()
 
-## Heatmap interpretation:
-
-## The heatmap shows that revenue has the highest positive correlation with budget and popularity. This suggests that films with higher budgets and those that are more popular are likely to have higher revenue, but the relationship is stronger with budget.
-## Revenue has very low correlation with vote_average and runtime. This implies that there's almost no linear relationship between the average rating or length of a movie and its runtime.
-## Vote_Count has a moderate positive correlation with revenue, indicating that the movies with more votes tend to have higher revenue, though this relationship is not as strong as budget.
-
-## Scatter Plot Matrix Interpretation:
-
-## The scatter plot of revenue versus vote_count shows some positive trend; however, it does not seem to be a very strong linear relationship. There are movies with a high number of votes that vary widely in nature.
-## There is a positive trend between revenue and budget, with higher budget movies tending to have higher revenue.
-## There is a positive trend, but many data points are clustered at the lower end of popularity, suggesting that popularity alone isn't a strong predictor of revenue.
-## There is not a clear pattern or trend between vote_average and revenue. The points are widely spread out, suggesting that for any given average vote, the corresponding revenues can vary greatly. This dispersion tells us that vote_average is not a strong determinant of a movie's revenue.
-## The relationship between revenue and runtime appears weak,the plot shows a wide dispersion of revenue across various runtimes, suggesting that the length of a movie does not strongly predict its financial success.
-
+# %%
+#
+# numeric_columns = ['vote_average', 'vote_count', 'revenue', 'runtime', 'budget', 'popularity']
+# numeric_df = movies_df[numeric_columns]
+#
+# # Plot the KDE pairplot with title
+# sns.pairplot(numeric_df, diag_kind='kde')
+# plt.suptitle('Multivariate KDE Pairplot', y=1.02)
+# plt.show()
 
 #%%
 
 ## Static Plots
 
+## 1.) Bar Chart showing the top 10 movies with the most revenue.
 
+# Sorting the dataset in descending order of revenue
+sorted_data = movies_df.sort_values(by='revenue', ascending=False)
+# Get the top 10 movies with highest revenue
+top_10_movies = sorted_data.head(10)
 
+# Plotting the bar plot
+plt.figure(figsize=(15, 12))
+bars = plt.bar(top_10_movies['title'], top_10_movies['revenue'], color='skyblue')
 
+# Adding revenue labels on top of each bar
+for bar, revenue in zip(bars, top_10_movies['revenue']):
+    plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'${revenue:,.0f}',
+             ha='center', va='bottom')
 
-
-
-
-
+plt.xlabel('Movie Title', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.ylabel('Revenue', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.title('Top 10 Movies with the Highest Revenue', fontdict={'fontname': 'serif', 'color': 'blue', 'size': 20})
+plt.xticks(rotation=45, ha='right', fontname='serif', size=12)
+plt.tight_layout()
+plt.show()
 
 # %%
+
+## 2.) Horizontal Bar Chart Showing the Top 5 Popular Movies with Average Votes and Vote_Count
+
+# Sort the DataFrame by 'popularity' in descending order
+sorted_data = movies_df.sort_values(by='popularity', ascending=False)
+
+# Get the top 5 most popular movies
+top_5_popular = sorted_data.head(5)
+
+# Reverse the order for 'barh' to plot with the most popular at the top
+top_5_popular = top_5_popular.iloc[::-1]
+
+# Plotting
+plt.figure(figsize=(15, 12))
+bars = plt.barh(top_5_popular['title'], top_5_popular['popularity'], color='skyblue')
+plt.xlabel('Popularity', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.ylabel('Movie Title', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.title('Top 5 Popular Movies with Popularity Score',
+          fontdict={'fontname': 'serif', 'color': 'blue', 'size': 20})
+
+for bar in bars:
+    plt.text(bar.get_width(), bar.get_y() + bar.get_height() / 2,
+             f'{bar.get_width():.2f}',
+             va='center', ha='left', color='black', fontsize=10)
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+# ## 3.) Line Chart showing the total revenue for each year.
+
+# Convert release_date to datetime
+movies_df['release_date'] = pd.to_datetime(movies_df['release_date'])
+
+# Extract year from release_date
+movies_df['year'] = movies_df['release_date'].dt.year
+
+# Group by the year to calculate total revenue and total budget per year
+yearly_totals = movies_df.groupby('year').agg({'revenue':'sum', 'budget':'sum'}).reset_index()
+
+# Plot the area chart
+plt.figure(figsize=(12, 6))
+plt.fill_between(yearly_totals['year'], yearly_totals['revenue'], alpha=0.5, label='Revenue')  # Adjust alpha for transparency
+plt.fill_between(yearly_totals['year'], yearly_totals['budget'], alpha=0.5, label='Budget')  # Adjust alpha for transparency
+plt.title('Total Revenue and Budget by Year',
+          fontdict={'fontname': 'serif', 'color': 'blue', 'size': 20})
+plt.xlabel('Year',fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.ylabel('Total Amount',fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# %%
+
+## 4.) Subplot showing a count plot of movies by genre and a grouped bar chart showing the total budget and revenue for different genres.
+
+# Splitting the genres and expanding them into separate rows
+genres_expanded = movies_df.drop('genres', axis=1).join(
+    movies_df['genres'].str.split(', ').explode().reset_index(drop=True),
+    how='right'
+)
+
+# Counting movies by genre
+genre_counts = genres_expanded['genres'].value_counts().sort_index()
+
+# Calculating total budget and revenue by genre
+genre_financials = genres_expanded.groupby('genres')[['budget', 'revenue']].sum().sort_index()
+
+# Creating subplots
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(25, 10))
+
+# Plotting the count of movies by genre
+sns.barplot(x=genre_counts.index, y=genre_counts.values, ax=axes[0])
+axes[0].set_title('Count of Movies by Genre', fontdict={'fontname': 'serif', 'color': 'blue', 'size': 20})
+axes[0].set_ylabel('Number of Movies', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+axes[0].set_xlabel('Genre', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+axes[0].set_xticklabels(genre_counts.index, rotation=45, ha='right', fontname='serif',
+                        size=12)  # Adjusting x-tick labels
+
+# Plotting total budget and revenue by genre
+genre_financials.plot(kind='bar', ax=axes[1])
+axes[1].set_title('Total Budget and Revenue by Genre', fontdict={'fontname': 'serif', 'color': 'blue', 'size': 20})
+axes[1].set_ylabel('Total Amount', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+axes[1].set_xlabel('Genre', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 16})
+
+# Correcting the x-ticks position for the grouped bar chart
+axes[1].set_xticks(range(len(genre_financials.index)))
+axes[1].set_xticklabels(genre_financials.index, rotation=45, ha='right', fontname='serif',
+                        size=12)  # Adjusting x-tick labels
+
+# Adjust layout to prevent overlap
+plt.tight_layout()
+
+# Show plot
+plt.show()
+
+# %%
+
+## 5.) Regression Subplot showing the influence of Budget and Revenue on Popularity of movies
+
+# Filter the DataFrame
+df_plot = movies_df[(movies_df['budget'] != 0) & (movies_df['revenue'] != 0)]
+
+# Creating the subplot
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
+
+plt.suptitle('The Influence of Budget and Revenue on Popularity of Movies', fontsize=18, weight='bold', color='#333d29')
+
+# Looping over the columns budget and revenue to create two subplots
+for i, col in enumerate(['budget', 'revenue']):
+    sns.regplot(data=df_plot, x=col, y='popularity',
+                scatter_kws={"color": "#06837f", "alpha": 0.6}, line_kws={"color": "#fdc100"}, ax=axes[i])
+    # Setting title for each subplot
+    axes[i].set_title(col.capitalize() + ' vs Popularity', fontdict={'fontname': 'serif', 'color': 'blue', 'size': 14})
+    # Setting x and y labels with specified font properties
+    axes[i].set_xlabel(col.capitalize(), fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 12})
+    axes[i].set_ylabel('Popularity', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 12})
+
+# Adjust layout to make space for the super title
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+# Display the plots
+plt.show()
+
+# %%
+
+## 6.) Subplots showing the top 5 Production Countries based on the total number of movies and the total revenue generated
+
+
+movies_df['production_countries'] = movies_df['production_countries'].apply(
+    lambda x: x if isinstance(x, list) else x.split(', '))
+
+# Explode the 'production_countries' DataFrame
+exploded_countries_df = movies_df.explode('production_countries')
+
+production_countries_count = exploded_countries_df['production_countries'].value_counts().nlargest(5)
+
+production_countries_revenue = exploded_countries_df.groupby('production_countries')['revenue'].sum().nlargest(5)
+
+# Creating a subplot with 1 row and 2 columns
+fig, axs = plt.subplots(1, 2, figsize=(20, 10))
+
+# Subplot for production countries by number of movies
+country_bars_count = axs[0].bar(range(len(production_countries_count)), production_countries_count.values)
+axs[0].set_title('Top 5 Production Countries by Total Number of Movies',
+                 fontdict={'fontname': 'serif', 'color': 'blue', 'size': 16})
+axs[0].set_xlabel('Production Countries', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 14})
+axs[0].set_ylabel('Number of Movies', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 14})
+axs[0].set_xticks(range(len(production_countries_count)))
+axs[0].set_xticklabels(production_countries_count.index, rotation=45, ha='right', fontsize=8)
+
+country_bars_revenue = axs[1].bar(range(len(production_countries_revenue)), production_countries_revenue.values)
+axs[1].set_title('Top 5 Production Countries by Revenue', fontdict={'fontname': 'serif', 'color': 'blue', 'size': 16})
+axs[1].set_xlabel('Production Countries', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 14})
+axs[1].set_ylabel('Revenue', fontdict={'fontname': 'serif', 'color': 'darkred', 'size': 14})
+axs[1].set_xticks(range(len(production_countries_revenue)))
+axs[1].set_xticklabels(production_countries_revenue.index, rotation=45, ha='right', fontsize=8)
+
+plt.tight_layout()
+plt.show()
+
+# %%
+
+## Adult Versus Non Adult Analysis : Adult vs. Non-Adult Analysis: A table comparing average revenue, budget, and popularity between adult and non-adult films.\
+
+# Grouping by 'adult' and calculating average revenue, average budget, and average popularity
+avg_stats = movies_df.groupby('adult').agg({'revenue': 'mean', 'budget': 'mean', 'popularity': 'mean'}).reset_index()
+
+# Creating a PrettyTable instance
+table = PrettyTable()
+
+# Defining column names
+table.field_names = ['Adult', 'Average Revenue', 'Average Budget', 'Average Popularity']
+
+# Adding rows to the table
+for index, row in avg_stats.iterrows():
+    table.add_row(['Adult' if row['adult'] else 'Non-Adult', f"${row['revenue']:.2f}", f"${row['budget']:.2f}",
+                   f"{row['popularity']:.2f}"])
+
+# Printing the table
+print(table)
+
+#%%
